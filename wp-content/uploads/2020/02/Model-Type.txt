@@ -1,0 +1,17 @@
+				Critical Path Model
+WHY?
+	Critical path is a step-by-step method that works well for projects that have tasks which are dependent on one another.
+
+	With the critical path managing style, interdependent activities are easily managed. The work can be broken down using a structure that tracks the timeline needed for completion of these dependencies, their milestones, and their deliverables.
+
+	Critical path project management is a style that outlines the critical and non-critical activities needed for the project by calculating which ones have the longest and shortest time to accomplish various tasks. This project management style is commonly used by scientists and manufacturers because there is such a heavy emphasis on task duration.
+
+Measuring and prioritizing tasks results in a faster completion time. Project managers will have a well-defined description of the project’s duration. This gives managers the ability to complete the task in the quickest amount of time by finishing “critical” tasks first, allowing inter-dependent tasks to be started.
+According to these attributes:	Organizational goals
+				Core values
+				Project constraints
+				Project stakeholders
+				Project size
+				Cost of the project
+				Ability to take risks
+				Need for flexibility
