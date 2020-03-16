@@ -10,12 +10,11 @@
 /**
  * API route object
  *
- * @since 6.4.0 Enhancement https://github.com/aamplugin/advanced-access-manager/issues/56
  * @since 6.1.0 Fixed bug with incorrectly halted inheritance mechanism
  * @since 6.0.0 Initial implementation of the class
  *
  * @package AAM
- * @version 6.4.0
+ * @version 6.1.0
  */
 class AAM_Core_Object_Route extends AAM_Core_Object
 {
@@ -57,26 +56,15 @@ class AAM_Core_Object_Route extends AAM_Core_Object
      *
      * @return boolean
      *
-     * @since 6.4.0 Added `aam_route_match_filter` to support enhancement
-     *              https://github.com/aamplugin/advanced-access-manager/issues/56
-     * @since 6.0.0 Initial implementation of the method
-     *
      * @access public
-     * @version 6.4.0
+     * @version 6.0.0
      */
     public function isRestricted($type, $route, $method = 'POST')
     {
         $options = $this->getOption();
         $id      = strtolower("{$type}|{$route}|{$method}");
-        $matched = !empty($options[$id]);
 
-        if ($matched === false) {
-            $matched = apply_filters(
-                'aam_route_match_filter', false, $type, $route, $method, $this
-            );
-        }
-
-        return $matched;
+        return !empty($options[$id]);
     }
 
 }

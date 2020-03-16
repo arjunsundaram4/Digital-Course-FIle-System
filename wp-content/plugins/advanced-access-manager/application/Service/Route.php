@@ -5,30 +5,19 @@
  * LICENSE: This file is subject to the terms and conditions defined in *
  * file 'license.txt', which is part of this source code package.       *
  * ======================================================================
+ *
+ * @version 6.0.0
  */
 
 /**
  * API Route service
  *
- * @since 6.4.0 Enhanced https://github.com/aamplugin/advanced-access-manager/issues/71
- *              Fixed https://github.com/aamplugin/advanced-access-manager/issues/76
- * @since 6.0.0 Initial implementation of the class
- *
  * @package AAM
- * @version 6.4.0
+ * @version 6.0.0
  */
 class AAM_Service_Route
 {
     use AAM_Core_Contract_ServiceTrait;
-
-    /**
-     * Service alias
-     *
-     * Is used to get service instance if it is enabled
-     *
-     * @version 6.4.0
-     */
-    const SERVICE_ALIAS = 'api-route';
 
     /**
      * AAM configuration setting that is associated with the service
@@ -79,12 +68,8 @@ class AAM_Service_Route
      *
      * @return void
      *
-     * @since 6.4.0 Enhanced https://github.com/aamplugin/advanced-access-manager/issues/71
-     *              Fixed https://github.com/aamplugin/advanced-access-manager/issues/76
-     * @since 6.0.0 Initial implementation of the method
-     *
      * @access protected
-     * @version 6.4.0
+     * @version 6.0.0
      */
     protected function initializeHooks()
     {
@@ -135,48 +120,8 @@ class AAM_Service_Route
             PHP_INT_MAX
         );
 
-        // Register API manager is applicable
+        //register API manager is applicable
         add_action('parse_request', array($this, 'registerRouteControllers'), 1);
-
-        // Policy generation hook
-        add_filter(
-            'aam_generated_policy_filter', array($this, 'generatePolicy'), 10, 4
-        );
-
-        // Service fetch
-        $this->registerService();
-    }
-
-    /**
-     * Generate API Route policy statements
-     *
-     * @param array                     $policy
-     * @param string                    $resource_type
-     * @param array                     $options
-     * @param AAM_Core_Policy_Generator $generator
-     *
-     * @return array
-     *
-     * @access public
-     * @version 6.4.0
-     */
-    public function generatePolicy($policy, $resource_type, $options, $generator)
-    {
-        if ($resource_type === AAM_Core_Object_Route::OBJECT_TYPE) {
-            if (!empty($options)) {
-                $normalized = array();
-                foreach($options as $id => $effect) {
-                    $normalized[str_replace('|', ':', $id)] = !empty($effect);
-                }
-
-                $policy['Statement'] = array_merge(
-                    $policy['Statement'],
-                    $generator->generateBasicStatements($normalized, 'Route')
-                );
-            }
-        }
-
-        return $policy;
     }
 
     /**

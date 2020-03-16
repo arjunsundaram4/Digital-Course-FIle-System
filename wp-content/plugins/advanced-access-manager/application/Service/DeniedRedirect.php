@@ -5,31 +5,20 @@
  * LICENSE: This file is subject to the terms and conditions defined in *
  * file 'license.txt', which is part of this source code package.       *
  * ======================================================================
+ *
+ * @version 6.0.0
  */
 
 /**
  * Access Denied Redirect service
  *
- * @since 6.4.0 Enhanced https://github.com/aamplugin/advanced-access-manager/issues/71
- *              Fixed https://github.com/aamplugin/advanced-access-manager/issues/76
- * @since 6.0.0 Initial implementation of the class
- *
  * @package AAM
- * @version 6.4.0
+ * @version 6.0.0
  */
 class AAM_Service_DeniedRedirect
 {
 
     use AAM_Core_Contract_ServiceTrait;
-
-    /**
-     * Service alias
-     *
-     * Is used to get service instance if it is enabled
-     *
-     * @version 6.4.0
-     */
-    const SERVICE_ALIAS = 'access-denied-redirect';
 
     /**
      * AAM configuration setting that is associated with the service
@@ -119,12 +108,8 @@ class AAM_Service_DeniedRedirect
      *
      * @return void
      *
-     * @since 6.4.0 Enhanced https://github.com/aamplugin/advanced-access-manager/issues/71
-     *              Fixed https://github.com/aamplugin/advanced-access-manager/issues/76
-     * @since 6.0.0 Initial implementation of the method
-     *
      * @access protected
-     * @version 6.4.0
+     * @version 6.0.0
      */
     protected function initializeHooks()
     {
@@ -134,72 +119,6 @@ class AAM_Service_DeniedRedirect
 
             return array($service, 'processDie');
         }, PHP_INT_MAX - 1);
-
-        // Policy generation hook
-        add_filter(
-            'aam_generated_policy_filter', array($this, 'generatePolicy'), 10, 3
-        );
-
-        // Service fetch
-        $this->registerService();
-    }
-
-     /**
-     * Generate Access Denied Redirect policy params
-     *
-     * @param array   $policy
-     * @param string  $resource_type
-     * @param array   $options
-     *
-     * @return array
-     *
-     * @access public
-     * @version 6.4.0
-     */
-    public function generatePolicy($policy, $resource_type, $options)
-    {
-        if ($resource_type === AAM_Core_Object_Redirect::OBJECT_TYPE) {
-            if (!empty($options)) {
-                $params = array();
-
-                foreach($options as $key => $val) {
-                    $parts = explode('.', $key);
-
-                    if ($parts[2] === 'type') {
-                        $destination = $options["{$parts[0]}.redirect.{$val}"];
-
-                        $value = array(
-                            'Type' => $val
-                        );
-
-                        if ($val === 'page') {
-                            $page = get_post($destination);
-
-                            if (is_a($page, 'WP_Post')) {
-                                $value['Slug'] = $page->post_name;
-                            } else{
-                                $value['Id'] = intval($destination);
-                            }
-                        } elseif ($val  === 'url') {
-                            $value['URL'] = trim($destination);
-                        } elseif ($val === 'callback') {
-                            $value['Callback'] = trim($destination);
-                        } elseif ($val === 'message') {
-                            $value['Message'] = $destination;
-                        }
-
-                        $params[] = array(
-                            'Key'   => 'redirect:on:access-denied:' . $parts[0],
-                            'Value' => $value
-                        );
-                    }
-                }
-
-                $policy["Param"] = array_merge($policy["Param"], $params);
-            }
-        }
-
-        return $policy;
     }
 
     /**
@@ -211,11 +130,8 @@ class AAM_Service_DeniedRedirect
      *
      * @return void
      *
-     * @since 6.4.0 Small refactoring to meet AAM coding standards
-     * @since 6.0.0 Initial implementation of the method
-     *
      * @access public
-     * @version 6.4.0
+     * @version 6.0.0
      */
     public function processDie($message, $title = '', $args = array())
     {
@@ -224,11 +140,13 @@ class AAM_Service_DeniedRedirect
             $isApi  = (defined('REST_REQUEST') && REST_REQUEST);
 
             if (($method !== 'POST') && !$isApi) {
-                $area   = (is_admin() ? 'backend' : 'frontend');
-                $object = AAM::getUser()->getObject(
-                    AAM_Core_Object_Redirect::OBJECT_TYPE
-                );
+                if (is_admin()) {
+                    $area = 'backend';
+                } else {
+                    $area = 'frontend';
+                }
 
+                $object = AAM::getUser()->getObject('redirect');
                 $type   = $object->get("{$area}.redirect.type", 'default');
 
                 AAM_Core_Redirect::execute(

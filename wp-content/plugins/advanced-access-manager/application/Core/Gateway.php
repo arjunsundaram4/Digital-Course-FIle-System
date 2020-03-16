@@ -189,7 +189,8 @@ final class AAM_Core_Gateway
      */
     public function getAccessPolicyManager(
         AAM_Core_Subject $subject = null, $skipInheritance = false
-    ) {
+    )
+    {
         if (is_null($subject)) {
             $subject = AAM::getUser();
         }

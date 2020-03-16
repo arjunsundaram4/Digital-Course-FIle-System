@@ -10,15 +10,13 @@
 /**
  * AAM core policy generator
  *
- * @since 6.4.0 Enhanced with redirects params generation
- *              Fixed https://github.com/aamplugin/advanced-access-manager/issues/76
  * @since 6.3.0 Refactored post statement generation to cover the bug
  *              https://github.com/aamplugin/advanced-access-manager/issues/22
  * @since 6.2.2 Fixed bug with incompatibility with PHP lower than 7.0.0
  * @since 6.2.0 Initial implementation of the class
  *
  * @package AAM
- * @version 6.4.0
+ * @version 6.3.0
  */
 class AAM_Core_Policy_Generator
 {
@@ -49,12 +47,8 @@ class AAM_Core_Policy_Generator
      *
      * @param AAM_Core_Subject $subject
      *
-     * @since 6.4.0 Removed `aam_post_policy_generator_filter` and moved it to the
-     *              content service
-     * @since 6.2.0 Initial implementation of the method
-     *
      * @access public
-     * @version 6.4.0
+     * @version 6.2.0
      */
     public function __construct(AAM_Core_Subject $subject)
     {
@@ -65,6 +59,14 @@ class AAM_Core_Policy_Generator
         $xpath .= ($subject->getId() ? '.' . $subject->getId() : '');
 
         $this->settings = AAM_Core_AccessSettings::getInstance()->get($xpath);
+
+        // Share post access settings conversion with add-ons and other third-party
+        // solutions
+        add_filter('aam_post_policy_generator_filter', function($list, $res, $opts) {
+            return array_merge(
+                $list, $this->_convertToPostStatements($res, $opts)
+            );
+        }, 10, 3);
     }
 
     /**
@@ -72,32 +74,78 @@ class AAM_Core_Policy_Generator
      *
      * @return string
      *
-     * @since 6.4.0 Enhanced with redirect rules generators
-     *              Fixed https://github.com/aamplugin/advanced-access-manager/issues/76
-     * @since 6.2.0 Initial implementation of the method
-     *
      * @access public
-     * @version 6.4.0
+     * @version 6.2.0
      */
     public function generate()
     {
-        $policy = array(
+        $generated = array(
             'Statement' => array(),
             'Param'     => array()
         );
 
-        foreach($this->settings as $type => $data) {
-            $policy = apply_filters(
-                'aam_generated_policy_filter', $policy, $type, $data, $this
-            );
+        foreach($this->settings as $res_type => $data) {
+            switch($res_type) {
+                case AAM_Core_Object_Menu::OBJECT_TYPE:
+                    $generated['Statement'] = array_merge(
+                        $generated['Statement'],
+                        $this->generateBackendMenuStatements($data)
+                    );
+                    break;
+
+                case AAM_Core_Object_Toolbar::OBJECT_TYPE:
+                    $generated['Statement'] = array_merge(
+                        $generated['Statement'],
+                        $this->generateToolbarStatements($data)
+                    );
+                    break;
+
+                case AAM_Core_Object_Metabox::OBJECT_TYPE:
+                    $generated['Statement'] = array_merge(
+                        $generated['Statement'],
+                        $this->generateMetaboxStatements($data)
+                    );
+                    break;
+
+                case AAM_Core_Object_Post::OBJECT_TYPE:
+                    $generated['Statement'] = array_merge(
+                        $generated['Statement'],
+                        $this->generatePostStatements($data)
+                    );
+                    break;
+
+                case AAM_Core_Object_Uri::OBJECT_TYPE:
+                    $generated['Statement'] = array_merge(
+                        $generated['Statement'],
+                        $this->generateUriStatements($data)
+                    );
+                    break;
+
+                case AAM_Core_Object_Route::OBJECT_TYPE:
+                    $generated['Statement'] = array_merge(
+                        $generated['Statement'],
+                        $this->generateRouteStatements($data)
+                    );
+                    break;
+
+                default:
+                    $generated = apply_filters(
+                        'aam_generated_policy_filter',
+                        $generated,
+                        $res_type,
+                        $data,
+                        $this->subject
+                    );
+                    break;
+            }
         }
 
-        // If subject is User or Role, then also include explicitly defined
-        // capabilities
-        if (in_array($this->subject::UID, array('user', 'role'))) {
+        // If subject is User, then also include combined list of capabilities that
+        // are assigned to him
+        if (is_a($this->subject, 'AAM_Core_Subject_User')) {
             $allowed = $denied = array();
 
-            foreach($this->subject->getCapabilities() as $cap => $effect) {
+            foreach($this->subject->allcaps as $cap => $effect) {
                 if (!empty($effect)) {
                     $allowed[] = 'Capability:' . $cap;
                 } else {
@@ -106,14 +154,14 @@ class AAM_Core_Policy_Generator
             }
 
             if (!empty($allowed)) {
-                $policy['Statement'][] = array(
+                $generated['Statement'][] = array(
                     'Effect'   => 'allow',
                     'Resource' => $allowed
                 );
             }
 
             if (!empty($denied)) {
-                $policy['Statement'][] = array(
+                $generated['Statement'][] = array(
                     'Effect'   => 'deny',
                     'Enforce'  => true,
                     'Resource' => $denied
@@ -121,62 +169,322 @@ class AAM_Core_Policy_Generator
             }
         }
 
-        $base = json_decode(
+        $policy = json_decode(
             AAM_Backend_Feature_Main_Policy::getDefaultPolicy(), true
         );
 
-        return wp_json_encode(array_merge($base, $policy));
+        return wp_json_encode(array_merge($policy, $generated));
     }
 
     /**
-     * Generate Login/Logout/404 Redirect params
+     * Generate Backend Menu statements
      *
-     * @param array  $options
-     * @param string $type
+     * @param array $menus
      *
      * @return array
      *
-     * @access public
-     * @version 6.4.0
+     * @access protected
+     * @version 6.2.0
      */
-    public function generateRedirectParam($options, $type)
+    protected function generateBackendMenuStatements($menus)
     {
-        $params = array();
+        return $this->_generateBasicStatements($menus, 'BackendMenu');
+    }
 
-        foreach($options as $key => $val) {
-            $parts = explode('.', $key);
+    /**
+     * Generate Toolbar statements
+     *
+     * @param array $toolbar
+     *
+     * @return array
+     *
+     * @access protected
+     * @version 6.2.0
+     */
+    protected function generateToolbarStatements($toolbar)
+    {
+        return $this->_generateBasicStatements($toolbar, 'Toolbar');
+    }
 
-            if ($parts[2] === 'type') {
-                $destination = $options["{$type}.redirect.{$val}"];
+    /**
+     * Generate URI statements
+     *
+     * @param array $uris
+     *
+     * @return array
+     *
+     * @access protected
+     * @version 6.2.0
+     */
+    protected function generateUriStatements($uris)
+    {
+        return $this->_generateBasicStatements($uris, 'URI');
+    }
 
-                $value = array(
-                    'Type' => $val
-                );
+    /**
+     * Generate API Route statements
+     *
+     * @param array $routes
+     *
+     * @return array
+     *
+     * @access protected
+     * @version 6.2.0
+     */
+    protected function generateRouteStatements($routes)
+    {
+        $normalized = array();
 
-                if ($val === 'page') {
-                    $page = get_post($destination);
+        foreach($routes as $id => $effect) {
+            $normalized[str_replace('|', ':', $id)] = $effect;
+        }
 
-                    if (is_a($page, 'WP_Post')) {
-                        $value['Slug'] = $page->post_name;
-                    } else{
-                        $value['Id'] = intval($destination);
-                    }
-                } elseif ($val  === 'url') {
-                    $value['URL'] = trim($destination);
-                } elseif ($val === 'callback') {
-                    $value['Callback'] = trim($destination);
-                }  elseif ($val === 'message') {
-                    $value['Message'] = $destination;
-                }
+        return $this->_generateBasicStatements($normalized, 'Route');
+    }
 
-                $params[] = array(
-                    'Key'   => "redirect:on:{$type}",
-                    'Value' => $value
-                );
+    /**
+     * Generate Metabox & Widget statements
+     *
+     * @param array $list
+     *
+     * @return array
+     *
+     * @access protected
+     * @version 6.2.0
+     */
+    protected function generateMetaboxStatements($list)
+    {
+        $metaboxes = $widgets = array();
+
+        foreach($list as $id => $effect) {
+            $parts = explode('|', $id);
+
+            if (in_array($parts[0], array('dashboard', 'widget'), true)) {
+                $widgets[$id] = $effect;
+            } else {
+                $metaboxes[$id] = $effect;
             }
         }
 
-        return $params;
+        return array_merge(
+            $this->_generateBasicStatements($widgets, 'Widget'),
+            $this->_generateBasicStatements($metaboxes, 'Metabox')
+        );
+    }
+
+    /**
+     * Generate Post statements
+     *
+     * @param array $posts
+     *
+     * @return array
+     *
+     * @access protected
+     * @version 6.2.0
+     */
+    protected function generatePostStatements($posts)
+    {
+        $statements = array();
+
+        foreach($posts as $id => $options) {
+            $parts    = explode('|', $id);
+            $resource = "Post:{$parts[1]}:{$parts[0]}";
+
+            $statements = array_merge(
+                $statements, $this->_convertToPostStatements($resource, $options)
+            );
+        }
+
+        return $statements;
+    }
+
+    /**
+     * Convert post settings to policy format
+     *
+     * @param string $resource
+     * @param array  $options
+     *
+     * @return array
+     *
+     * @since 6.3.0 Fixed bug https://github.com/aamplugin/advanced-access-manager/issues/22
+     * @since 6.2.2 Fixed bug that caused fatal error for PHP lower than 7.0.0
+     * @since 6.2.0 Initial implementation of the method
+     *
+     * @access private
+     * @version 6.3.0
+     */
+    private function _convertToPostStatements($resource, $options)
+    {
+        $tree = (object) array(
+            'allowed'    => array(),
+            'denied'     => array(),
+            'statements' => array()
+        );
+
+        foreach($options as $option => $settings) {
+            // Compute Effect property
+            if (is_bool($settings)) {
+                $effect = ($settings === true ? 'denied' : 'allowed');
+            } else {
+                $effect = (!empty($settings['enabled']) ? 'denied' : 'allowed');
+            }
+
+            $action = null;
+
+            switch($option) {
+                case 'restricted':
+                    $action = 'Read';
+                    break;
+
+                case 'comment':
+                case 'edit':
+                case 'delete':
+                case 'publish':
+                case 'create':
+                    $action = ucfirst($option);
+                    break;
+
+                case 'hidden':
+                    $item = array(
+                        'Effect'  => ($effect === 'denied' ? 'deny' : 'allow'),
+                        'Action'   => 'List',
+                        'Resource' => $resource
+                    );
+
+                    $conditions = array();
+
+                    if (is_array($settings)) {
+                        if (!empty($settings['frontend'])) {
+                            $conditions['(*boolean)${CALLBACK.is_admin}'] = false;
+                        }
+                        if (!empty($settings['backend'])) {
+                            $conditions['(*boolean)${CALLBACK.is_admin}'] = true;
+                        }
+                        if (!empty($settings['api'])) {
+                            $conditions['(*boolean)${CONST.REST_REQUEST}'] = true;
+                        }
+                    }
+
+                    if (!empty($conditions)) {
+                        $item['Condition']['Equals'] = $conditions;
+                    }
+
+                    $tree->statements[] = $item;
+                    break;
+
+                case 'teaser':
+                    $tree->statements[] = array(
+                        'Effect'  => ($effect === 'denied' ? 'deny' : 'allow'),
+                        'Action'   => 'Read',
+                        'Resource' => $resource,
+                        'Metadata' => array(
+                            'Teaser' => array(
+                                'Value' => $settings['message']
+                            )
+                        )
+                    );
+                    break;
+
+                case 'limited':
+                    $tree->statements[] = array(
+                        'Effect'   => ($effect === 'denied' ? 'deny' : 'allow'),
+                        'Action'   => 'Read',
+                        'Resource' => $resource,
+                        'Metadata' => array(
+                            'Limited' => array(
+                                'Threshold' => intval($settings['threshold'])
+                            )
+                        )
+                    );
+                    break;
+
+                case 'redirected':
+                    $metadata = array(
+                        'Type' => $settings['type'],
+                        'Code' => intval(isset($settings['httpCode']) ? $settings['httpCode'] : 307)
+                    );
+
+                    if ($settings['type'] === 'page') {
+                        $metadata['Id'] = intval($settings['destination']);
+                    } elseif ($settings['type']  === 'url') {
+                        $metadata['URL'] = trim($settings['destination']);
+                    } elseif ($settings['type'] === 'callback') {
+                        $metadata['Callback'] = trim($settings['destination']);
+                    }
+
+                    $tree->statements[] = array(
+                        'Effect'   => ($effect === 'denied' ? 'deny' : 'allow'),
+                        'Action'   => 'Read',
+                        'Resource' => $resource,
+                        'Metadata' => array(
+                            'Redirect' => $metadata
+                        )
+                    );
+                    break;
+
+                case 'protected':
+                    $tree->statements[] = array(
+                        'Effect'   => ($effect === 'denied' ? 'deny' : 'allow'),
+                        'Action'   => 'Read',
+                        'Resource' => $resource,
+                        'Metadata' => array(
+                            'Password' => array(
+                                'Value' => $settings['password']
+                            )
+                        )
+                    );
+                    break;
+
+                case 'ceased':
+                    $tree->statements[] = array(
+                        'Effect'   => ($effect === 'denied' ? 'deny' : 'allow'),
+                        'Action'   => 'Read',
+                        'Resource' => $resource,
+                        'Condition' => array(
+                            'Greater' => array(
+                                '(*int)${DATETIME.U}' => intval($settings['after'])
+                            )
+                        )
+                    );
+                    break;
+
+                default:
+                    do_action(
+                        'aam_post_option_to_policy_action',
+                        $resource,
+                        $option,
+                        $effect,
+                        $settings,
+                        $tree
+                    );
+                    break;
+            }
+
+            if ($action !== null) {
+                if ($effect === 'allowed') {
+                    $tree->allowed[] = $resource . ':' . $action;
+                } else {
+                    $tree->denied[] = $resource . ':' . $action;
+                }
+            }
+        }
+
+        // Finally prepare the consolidated statements
+        if (!empty($tree->denied)) {
+            $tree->statements[] = array(
+                'Effect'   => 'deny',
+                'Resource' => $tree->denied
+            );
+        }
+
+        if (!empty($tree->allowed)) {
+            $tree->statements[] = array(
+                'Effect'   => 'allow',
+                'Resource' => $tree->allowed
+            );
+        }
+
+        return $tree->statements;
     }
 
     /**
@@ -187,13 +495,10 @@ class AAM_Core_Policy_Generator
      *
      * @return array
      *
-     * @since 6.4.0 Made the method public
-     * @since 6.2.0 Initial implementation of the method
-     *
-     * @access public
+     * @access private
      * @version 6.2.0
      */
-    public function generateBasicStatements($options, $resource)
+    private function _generateBasicStatements($options, $resource)
     {
         $denied = $allowed =  $statements = array();
 

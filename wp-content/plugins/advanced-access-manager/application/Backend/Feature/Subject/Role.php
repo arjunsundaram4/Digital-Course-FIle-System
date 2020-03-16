@@ -10,12 +10,11 @@
 /**
  * Role view manager
  *
- * @since 6.4.0 Enhancement https://github.com/aamplugin/advanced-access-manager/issues/72
  * @since 6.1.0 Fixed bug with role creation process that caused PHP warning
  * @since 6.0.0 Initial implementation of the class
  *
  * @package AAM
- * @version 6.4.0
+ * @version 6.1.0
  */
 class AAM_Backend_Feature_Subject_Role
 {
@@ -258,21 +257,15 @@ class AAM_Backend_Feature_Subject_Role
      *
      * @return array
      *
-     * @since 6.4.0 Enhancement https://github.com/aamplugin/advanced-access-manager/issues/72
-     * @since 6.0.0 Initial implementation of the method
-     *
      * @access private
-     * @version 6.4.0
+     * @version 6.0.0
      */
     private function _edit()
     {
         if (current_user_can('aam_edit_roles')) {
             $role = AAM_Backend_Subject::getInstance();
 
-            $role->update(
-                esc_js(trim(filter_input(INPUT_POST, 'name'))),
-                sanitize_key(filter_input(INPUT_POST, 'slug'))
-            );
+            $role->update(esc_js(trim(filter_input(INPUT_POST, 'name'))));
 
             do_action('aam_post_update_role_action', $role->getSubject());
 
