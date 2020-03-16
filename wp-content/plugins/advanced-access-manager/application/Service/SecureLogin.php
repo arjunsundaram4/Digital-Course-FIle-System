@@ -10,17 +10,28 @@
 /**
  * Secure Login service
  *
+ * @since 6.4.0 Enhanced https://github.com/aamplugin/advanced-access-manager/issues/16.
+ *              Enhanced https://github.com/aamplugin/advanced-access-manager/issues/71
  * @since 6.3.1 Fixed bug with not being able to lock user
  * @since 6.1.0 Enriched error response with more details
  * @since 6.0.0 Initial implementation of the class
  *
  * @package AAM
- * @version 6.3.1
+ * @version 6.4.0
  */
 class AAM_Service_SecureLogin
 {
     use AAM_Core_Contract_RequestTrait,
         AAM_Core_Contract_ServiceTrait;
+
+    /**
+     * Service alias
+     *
+     * Is used to get service instance if it is enabled
+     *
+     * @version 6.4.0
+     */
+    const SERVICE_ALIAS = 'secure-login';
 
     /**
      * AAM configuration setting that is associated with the service
@@ -71,8 +82,11 @@ class AAM_Service_SecureLogin
      *
      * @return void
      *
+     * @since 6.4.0 Enhanced https://github.com/aamplugin/advanced-access-manager/issues/71
+     * @since 6.0.0 Initial implementation of the method
+     *
      * @access protected
-     * @version 6.0.0
+     * @version 6.4.0
      */
     protected function initializeHooks()
     {
@@ -121,6 +135,9 @@ class AAM_Service_SecureLogin
                 wp_logout();
             }
         });
+
+        // Service fetch
+        $this->registerService();
     }
 
     /**
@@ -170,11 +187,12 @@ class AAM_Service_SecureLogin
      *
      * @return WP_REST_Response
      *
+     * @since 6.4.0 Enhanced to support https://github.com/aamplugin/advanced-access-manager/issues/16
      * @since 6.1.0 Enriched error response with more details
      * @since 6.0.0 Initial implementation of the method
      *
      * @access public
-     * @version 6.1.0
+     * @version 6.4.0
      */
     public function authenticate(WP_REST_Request $request)
     {
@@ -191,16 +209,23 @@ class AAM_Service_SecureLogin
             'remember'      => $request->get_param('remember')
         ));
 
-        if (!is_wp_error($user)) {
-            $result = apply_filters('aam_auth_response_filter', array(
-                'user'     => $user,
-                'redirect' => $request->get_param('redirect')
-            ), $request);
-        } else {
-            $status = 403;
+        try {
+            if (!is_wp_error($user)) {
+                $result = apply_filters('aam_auth_response_filter', array(
+                    'user'     => $user,
+                    'redirect' => $request->get_param('redirect')
+                ), $request);
+            } else {
+                $status = 403;
+                $result = array(
+                    'code'   => $user->get_error_code(),
+                    'reason' => $user->get_error_message()
+                );
+            }
+        } catch(Exception $e) {
+            $status = $e->getCode();
             $result = array(
-                'code'   => $user->get_error_code(),
-                'reason' => $user->get_error_message()
+                'reason' => $e->getMessage()
             );
         }
 

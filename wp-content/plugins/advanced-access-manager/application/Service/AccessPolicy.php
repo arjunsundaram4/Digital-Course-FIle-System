@@ -10,6 +10,8 @@
 /**
  * Access Policy service
  *
+ * @since 6.4.0 Enhanced https://github.com/aamplugin/advanced-access-manager/issues/71
+ *              Added new hook `aam_post_read_action_conversion_filter`
  * @since 6.3.1 Fixed incompatibility with plugins that use WP_User::get_role_caps
  *              method. This method re-index all user capabilities based on assigned
  *              roles and that flushes capabilities attached with Access Policy
@@ -19,12 +21,21 @@
  * @since 6.0.0 Initial implementation of the class
  *
  * @package AAM
- * @version 6.3.1
+ * @version 6.4.0
  */
 class AAM_Service_AccessPolicy
 {
     use AAM_Core_Contract_ServiceTrait,
         AAM_Core_Contract_RequestTrait;
+
+    /**
+     * Service alias
+     *
+     * Is used to get service instance if it is enabled
+     *
+     * @version 6.4.0
+     */
+    const SERVICE_ALIAS = 'access-policy';
 
     /**
      * AAM configuration setting that is associated with the feature
@@ -169,13 +180,16 @@ class AAM_Service_AccessPolicy
      *
      * @return void
      *
+     * @since 6.4.0 Enhanced https://github.com/aamplugin/advanced-access-manager/issues/71
+     *              https://github.com/aamplugin/advanced-access-manager/issues/62
+     *              https://github.com/aamplugin/advanced-access-manager/issues/63
      * @since 6.2.1 Access support for custom-fields
      * @since 6.2.0 Added new hook into Multisite service through `aam_allowed_site_filter`
      * @since 6.1.1 Refactored the way access policy is applied to object
      * @since 6.0.0 Initial implementation of the method
      *
      * @access protected
-     * @version 6.2.1
+     * @version 6.4.0
      */
     protected function initializeHooks()
     {
@@ -228,6 +242,12 @@ class AAM_Service_AccessPolicy
         add_filter('aam_uri_object_option_filter', array($this, 'applyAccessPolicyToObject'), 10, 2);
         add_filter('aam_route_object_option_filter', array($this, 'applyAccessPolicyToObject'), 10, 2);
 
+        // Hooks to support all available Redirects
+        add_filter('aam_redirect_object_option_filter', array($this, 'applyAccessPolicyToObject'), 10, 2);
+        add_filter('aam_login_redirect_object_option_filter', array($this, 'applyAccessPolicyToObject'), 10, 2);
+        add_filter('aam_logout_redirect_object_option_filter', array($this, 'applyAccessPolicyToObject'), 10, 2);
+        add_filter('aam_404_redirect_object_option_filter', array($this, 'applyAccessPolicyToObject'), 10, 2);
+
         // Allow third-party to hook into Post resource conversion
         add_filter('aam_post_resource_filter', array($this, 'convertPostStatement'), 10, 4);
 
@@ -245,6 +265,9 @@ class AAM_Service_AccessPolicy
 
             return $manager->isAllowed('SITE:' . get_current_blog_id()) !== false;
         });
+
+        // Service fetch
+        $this->registerService();
     }
 
     /**
@@ -255,12 +278,13 @@ class AAM_Service_AccessPolicy
      *
      * @return array
      *
+     * @since 6.4.0 Enhanced with redirects support
      * @since 6.2.0 Fixed bug when access policy was not applied to visitors
      * @since 6.1.1 Optimized policy implementation
      * @since 6.0.0 Initial implementation of the method
      *
      * @access public
-     * @version 6.2.0
+     * @version 6.4.0
      */
     public function applyAccessPolicyToObject($options, AAM_Core_Object $object)
     {
@@ -290,8 +314,25 @@ class AAM_Service_AccessPolicy
                 case AAM_Core_Object_Uri::OBJECT_TYPE:
                     $options = $this->initializeUri($options, $object);
                     break;
+
                 case AAM_Core_Object_Route::OBJECT_TYPE:
                     $options = $this->initializeRoute($options, $object);
+                    break;
+
+                case AAM_Core_Object_Redirect::OBJECT_TYPE:
+                    $options = $this->initializeAccessDeniedRedirect($options);
+                    break;
+
+                case AAM_Core_Object_LoginRedirect::OBJECT_TYPE:
+                    $options = $this->initializeRedirect($options, 'login', $subject);
+                    break;
+
+                case AAM_Core_Object_LogoutRedirect::OBJECT_TYPE:
+                    $options = $this->initializeRedirect($options, 'logout', $subject);
+                    break;
+
+                case AAM_Core_Object_NotFoundRedirect::OBJECT_TYPE:
+                    $options = $this->initializeRedirect($options, '404', $subject);
                     break;
 
                 default:
@@ -551,6 +592,71 @@ class AAM_Service_AccessPolicy
     }
 
     /**
+     * Initialize Access Denied Redirect rules
+     *
+     * @param array $option
+     *
+     * @return array
+     *
+     * @access protected
+     * @version 6.4.0
+     */
+    protected function initializeAccessDeniedRedirect($option)
+    {
+        $manager = AAM::api()->getAccessPolicyManager();
+        $parsed  = array();
+        $params  = $manager->getParams('redirect:on:access-denied:(.*)');
+
+        foreach($params as $key => $param) {
+            $parts    = explode(':', $key);
+            $area     = array_pop($parts);
+            $value    = $this->convertRedirectAction($param['Value']);
+            $type     = (isset($value['type']) ? $value['type'] : 'default');
+
+            // Populate the object
+            $parsed["{$area}.redirect.type"]    = $type;
+
+            if (!empty($value['destination'])) {
+                $parsed["{$area}.redirect.{$type}"] = $value['destination'];
+            }
+        }
+
+        return array_merge($option, $parsed); //First-class citizen
+    }
+
+    /**
+     * Initialize Login/Logout/404 Redirect rules
+     *
+     * @param array  $option
+     * @param string $redirect_type
+     *
+     * @return array
+     *
+     * @access protected
+     * @version 6.4.0
+     */
+    protected function initializeRedirect($option, $redirect_type, $subject)
+    {
+        $manager = AAM::api()->getAccessPolicyManager($subject);
+        $parsed  = array();
+        $param   = $manager->getParam("redirect:on:{$redirect_type}");
+
+        if (!empty($param)) {
+            $value    = $this->convertRedirectAction($param);
+            $type     = (isset($value['type']) ? $value['type'] : 'default');
+
+            // Populate the object
+            $parsed["{$redirect_type}.redirect.type"]    = $type;
+
+            if (!empty($value['destination'])) {
+                $parsed["{$redirect_type}.redirect.{$type}"] = $value['destination'];
+            }
+        }
+
+        return array_merge($option, $parsed); //First-class citizen
+    }
+
+    /**
      * Check if specified action is allowed upon capability
      *
      * @param boolean $allowed
@@ -715,8 +821,12 @@ class AAM_Service_AccessPolicy
      *
      * @return void
      *
+     * @since 6.4.0 Added `aam_post_read_action_conversion_filter` to support
+     *              https://github.com/aamplugin/advanced-access-manager/issues/68
+     * @since 6.0.0 Initial implementation of the method
+     *
      * @access protected
-     * @version 6.0.0
+     * @version 6.4.0
      */
     protected function convertedPostReadAction(&$options, $statement, $ns = '')
     {
@@ -755,6 +865,10 @@ class AAM_Service_AccessPolicy
                     'threshold' => $metadata['Limited']['Threshold']
                 );
             }
+
+            $options = apply_filters(
+                'aam_post_read_action_conversion_filter', $options, $statement, $ns
+            );
         } else { // Simply restrict access to read a post
             $options[$ns . 'restricted'] = $effect;
         }
@@ -767,8 +881,11 @@ class AAM_Service_AccessPolicy
      *
      * @return array
      *
+     * @since 6.4.0 Added support for the "Custom Message" redirect type
+     * @since 6.0.0 Initial implementation of the method
+     *
      * @access protected
-     * @version 6.0.0
+     * @version 6.4.0
      */
     protected function convertRedirectAction($metadata)
     {
@@ -790,6 +907,8 @@ class AAM_Service_AccessPolicy
             $destination = $metadata['URL'];
         } elseif ($metadata['Type'] === 'callback') {
             $destination = $metadata['Callback'];
+        } elseif ($metadata['Type'] === 'message') {
+            $destination = $metadata['Message'];
         }
 
         $response['destination'] = $destination;

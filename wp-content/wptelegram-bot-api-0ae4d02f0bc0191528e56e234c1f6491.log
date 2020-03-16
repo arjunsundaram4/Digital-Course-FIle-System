@@ -1,0 +1,84 @@
+[2020-03-04 09:28:51]
+Method: getChatMembersCount
+Params: {"chat_id":"@arjunsundaram4"}
+--------------------------------
+Response: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+
+[2020-03-04 09:28:53]
+Method: sendMessage
+Params: {"chat_id":"@arjunsundaram4","text":"This is a test message"}
+--------------------------------
+Response: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+
+[2020-03-04 09:29:25]
+Method: getChatMembersCount
+Params: {"chat_id":"@arjunsundaram4"}
+--------------------------------
+Response: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+
+[2020-03-04 09:29:26]
+Method: sendMessage
+Params: {"chat_id":"@arjunsundaram4","text":"This is a test message"}
+--------------------------------
+Response: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+
+[2020-03-04 09:29:33]
+Method: getChatMembersCount
+Params: {"chat_id":"@arjunsundaram4"}
+--------------------------------
+Response: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+
+[2020-03-04 09:30:25]
+Method: getChatMembersCount
+Params: {"chat_id":"@arjunsundaram4"}
+--------------------------------
+Response: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+
+[2020-03-04 09:30:27]
+Method: getChatMembersCount
+Params: {"chat_id":"@arjunsundaram4"}
+--------------------------------
+Response: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+
+[2020-03-04 09:31:45]
+Method: getChatMembersCount
+Params: {"chat_id":"@arjunsundaram4"}
+--------------------------------
+Response: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+
+[2020-03-04 09:33:18]
+Method: sendMessage
+Params: {"chat_id":"@digitalcsec","text":"This is a test message"}
+--------------------------------
+Response: {"ok":true,"result":{"message_id":2,"chat":{"id":-1001315111303,"title":"Digital course file cse c","username":"digitalcsec","type":"channel"},"date":1583314398,"text":"This is a test message"}}
+
+[2020-03-04 09:36:45]
+Method: sendMessage
+Params: {"parse_mode":null,"disable_notification":false,"disable_web_page_preview":false,"text":"Open Lab\r\nMarch 4, 2020\r\n\r\n\r\n\r\nUncategorized","chat_id":"@digitalcsec"}
+--------------------------------
+Response: {"ok":true,"result":{"message_id":3,"chat":{"id":-1001315111303,"title":"Digital course file cse c","username":"digitalcsec","type":"channel"},"date":1583314605,"text":"Open Lab\nMarch 4, 2020\n\n\n\nUncategorized"}}
+
+[2020-03-04 09:38:38]
+Method: sendMessage
+Params: {"parse_mode":null,"disable_notification":false,"disable_web_page_preview":false,"text":"Home\r\n\r\nDashboard Change Password Logout Welcome, @arjunsundaram4 @arjunsundaram4 @@arjunsundaram4 From your account dashboard you can edit your profile details and edit your password. Not @arjunsundaram4? Sign out 15CSE213 15CSE412 Uncategorized Add our telegram bot @digital_course_bot Join Our Channel :https:\/\/t.me\/digitalcsec\r\n\r\nhttp:\/\/localhost\/wordpress\/","chat_id":"@digitalcsec"}
+--------------------------------
+Response: {"ok":true,"result":{"message_id":4,"chat":{"id":-1001315111303,"title":"Digital course file cse c","username":"digitalcsec","type":"channel"},"date":1583314718,"text":"Home\n\nDashboard Change Password Logout Welcome, @arjunsundaram4 @arjunsundaram4 @@arjunsundaram4 From your account dashboard you can edit your profile details and edit your password. Not @arjunsundaram4? Sign out 15CSE213 15CSE412 Uncategorized Add our telegram bot @digital_course_bot Join Our Channel :https://t.me/digitalcsec\n\nhttp://localhost/wordpress/","entities":[{"offset":48,"length":15,"type":"mention"},{"offset":64,"length":15,"type":"mention"},{"offset":81,"length":15,"type":"mention"},{"offset":187,"length":15,"type":"mention"},{"offset":266,"length":19,"type":"mention"},{"offset":304,"length":24,"type":"url"}]}}
+
+[2020-03-04 09:51:06]
+Method: sendMessage
+Params: {"parse_mode":null,"disable_notification":false,"disable_web_page_preview":false,"text":"Repository\r\n\r\nThis content is limited to logged in users. 15CSE213 15CSE412 Uncategorized Open LabMarch 4, 2020 Machine LearningMarch 4, 2020Linear Regression Least-Squares-Regression-ExampleDownload GradientDescentDownload Game TheoryMarch 4, 2020GuestLecture12_NashBargainingDownload (no title)February 19, 2020Lab-27.11.2019-Groups1011-1Download ApllicationFebruary 19, 2020hello world Software EngineeringFebruary 19, 2020 Hello WorldFebruary 19, 2020Test Case File Upload TestFebruary 18, 2020GT-case-stuudyDownload Software EngineeringFebruary 18, 2020Hello World Test Neural\u2026\r\n\r\nhttp:\/\/localhost\/wordpress\/repository\/","chat_id":"@digitalcsec"}
+--------------------------------
+Response: {"ok":true,"result":{"message_id":5,"chat":{"id":-1001315111303,"title":"Digital course file cse c","username":"digitalcsec","type":"channel"},"date":1583315466,"text":"Repository\n\nThis content is limited to logged in users. 15CSE213 15CSE412 Uncategorized Open LabMarch 4, 2020 Machine LearningMarch 4, 2020Linear Regression Least-Squares-Regression-ExampleDownload GradientDescentDownload Game TheoryMarch 4, 2020GuestLecture12_NashBargainingDownload (no title)February 19, 2020Lab-27.11.2019-Groups1011-1Download ApllicationFebruary 19, 2020hello world Software EngineeringFebruary 19, 2020 Hello WorldFebruary 19, 2020Test Case File Upload TestFebruary 18, 2020GT-case-stuudyDownload Software EngineeringFebruary 18, 2020Hello World Test Neural\u2026\n\nhttp://localhost/wordpress/repository/"}}
+
+[2020-03-04 10:17:31]
+Method: sendMessage
+Params: {"parse_mode":null,"disable_notification":false,"disable_web_page_preview":false,"text":"Test Page\r\n\r\nJust a test template for telegram Bot \ud83d\ude42\r\n\r\nhttp:\/\/localhost\/wordpress\/2020\/03\/04\/test-page\/","chat_id":"@digitalcsec"}
+--------------------------------
+Response: {"ok":true,"result":{"message_id":6,"chat":{"id":-1001315111303,"title":"Digital course file cse c","username":"digitalcsec","type":"channel"},"date":1583317051,"text":"Test Page\n\nJust a test template for telegram Bot \ud83d\ude42\n\nhttp://localhost/wordpress/2020/03/04/test-page/"}}
+
+[2020-03-04 10:17:32]
+Method: sendPhoto
+Params: {"photo":"http:\/\/localhost\/wordpress\/wp-content\/uploads\/2020\/03\/3f7486417ddd88060a1818d44b6f3728-telegram-icon-logo-by-vexels-1.png","caption":"Test Page","chat_id":"@digitalcsec","reply_to_message_id":6}
+--------------------------------
+Response: {"ok":false,"error_code":400,"description":"Bad Request: wrong HTTP URL specified"}
+

@@ -10,18 +10,29 @@
 /**
  * JWT Token service
  *
+ * @since 6.4.0 Added the ability to issue refreshable token via API.
+ *              Enhanced https://github.com/aamplugin/advanced-access-manager/issues/71
  * @since 6.3.0 Fixed incompatibility with other plugins that check for RESTful error
  *              status through `rest_authentication_errors` filter
  * @since 6.1.0 Enriched error response with more details
  * @since 6.0.0 Initial implementation of the class
  *
  * @package AAM
- * @version 6.3.0
+ * @version 6.4.0
  */
 class AAM_Service_Jwt
 {
     use AAM_Core_Contract_ServiceTrait,
         AAM_Core_Contract_RequestTrait;
+
+    /**
+     * Service alias
+     *
+     * Is used to get service instance if it is enabled
+     *
+     * @version 6.4.0
+     */
+    const SERVICE_ALIAS = 'jwt';
 
     /**
      * AAM configuration setting that is associated with the service
@@ -80,11 +91,13 @@ class AAM_Service_Jwt
      *
      * @return void
      *
+     * @since 6.4.0 Added the ability to issue refreshable token through API.
+     *              Enhanced https://github.com/aamplugin/advanced-access-manager/issues/71
      * @since 6.3.0 Fixed bug https://github.com/aamplugin/advanced-access-manager/issues/25
      * @since 6.0.0 Initial implementation of the method
      *
      * @access protected
-     * @version 6.3.0
+     * @version 6.4.0
      */
     protected function initializeHooks()
     {
@@ -115,6 +128,10 @@ class AAM_Service_Jwt
                 'description' => __('Issue JWT Token', AAM_KEY),
                 'type'        => 'boolean',
             );
+            $args['refreshableJWT'] = array(
+                'description' => __('Issue a refreshable JWT Token', AAM_KEY),
+                'type'        => 'boolean',
+            );
 
             return $args;
         });
@@ -141,6 +158,9 @@ class AAM_Service_Jwt
 
         // Fetch specific claim from the JWT token if present
         add_filter('aam_get_jwt_claim', array($this, 'getJwtClaim'), 20, 2);
+
+        // Service fetch
+        $this->registerService();
     }
 
     /**
@@ -376,13 +396,31 @@ class AAM_Service_Jwt
      *
      * @return array
      *
+     * @since 6.4.0 Added the ability to issue refreshable token
+     * @since 6.0.0 Initial implementation of the method
+     *
      * @access public
-     * @version 6.0.0
+     * @version 6.4.0
      */
     public function prepareLoginResponse(array $response, WP_REST_Request $request)
     {
         if ($request->get_param('issueJWT') === true) {
-            $jwt = $this->issueToken($response['user']->ID);
+            $refreshable = $request->get_param('refreshableJWT');
+
+            if ($refreshable) {
+                $refreshable = user_can(
+                    $response['user']->ID, 'aam_issue_refreshable_jwt'
+                );
+
+                if ($refreshable === false) {
+                    throw new Exception(
+                        __('Current user is not allowed to issue refreshable JWT token', AAM_KEY),
+                        400
+                    );
+                }
+            }
+
+            $jwt = $this->issueToken($response['user']->ID, null, null, $refreshable);
 
             $response['jwt'] = array(
                 'token'         => $jwt->token,

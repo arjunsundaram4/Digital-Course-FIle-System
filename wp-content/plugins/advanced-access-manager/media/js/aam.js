@@ -222,8 +222,15 @@
                                         resetForm('#edit-role-modal .modal-body');
                                         $('#edit-role-btn').data('role', data[0]);
                                         $('#edit-role-name').val(data[2]);
+                                        $('#edit-role-slug').val(data[0]);
                                         $('#edit-role-modal').modal('show');
                                         fetchRoleList(data[0]);
+
+                                        if (data[1] > 0) {
+                                            $('#edit-role-slug').prop('disabled', true);
+                                        } else {
+                                            $('#edit-role-slug').prop('disabled', false);
+                                        }
 
                                         //TODO - Rewrite JavaScript to support $.aam
                                         $.aamEditRole = data;
@@ -368,7 +375,7 @@
             $('#add-role-modal').on('shown.bs.modal', function (e) {
                 fetchRoleList();
                 //clear add role form first
-                $('input[name="name"]', '#add-role-modal').val('').focus();
+                $('input', '#add-role-modal').val('').focus();
             });
 
             $('#edit-role-modal').on('shown.bs.modal', function (e) {
@@ -439,6 +446,7 @@
                 var _this = this;
 
                 $('#edit-role-name').parent().removeClass('has-error');
+                $('#edit-role-slug').parent().removeClass('has-error');
 
                 var data = {
                     action: 'aam',
@@ -468,7 +476,7 @@
                         },
                         success: function (response) {
                             if (response.status === 'success') {
-                                $('#role-list').DataTable().ajax.reload();
+                                location.reload();
                             } else {
                                 getAAM().notification(
                                     'danger', getAAM().__('Failed to update role')
@@ -1620,6 +1628,10 @@
                 }
             }
 
+            $('#policy-generator').tooltip({
+                container: 'body'
+            });
+
             // Generate Policy action
             $('#generate-access-policy').bind('click', function() {
                 const btn = $('i', '#policy-generator');
@@ -2078,7 +2090,7 @@
                             var _this = $(this);
                             save(
                                 [$(this).data('metabox')],
-                                $(this).attr('checked') ? 1 : 0,
+                                $(this).attr('checked'),
                                 function (result) {
                                     if (result.status === 'success') {
                                         $('#aam-metabox-overwrite').show();
@@ -3474,7 +3486,7 @@
              * @param {type} value
              * @returns {undefined}
              */
-            function save(param, value) {
+            function save(param, value, cb) {
                 getAAM().queueRequest(function () {
                     $.ajax(getLocal().ajaxurl, {
                         type: 'POST',
@@ -3487,6 +3499,11 @@
                             subjectId: getAAM().getSubject().id,
                             param: param,
                             value: value
+                        },
+                        success: function (response) {
+                            if (typeof cb === 'function') {
+                                cb(response);
+                            }
                         },
                         error: function () {
                             getAAM().notification('danger');
@@ -3506,13 +3523,21 @@
                     $('input[type="radio"]', container).each(function () {
                         $(this).bind('click', function () {
                             //hide group
-                            $('.aam-404redirect-action').hide();
+                            $('.404redirect-action').hide();
 
                             //show the specific one
                             $($(this).data('action')).show();
 
                             //save redirect type
-                            save($(this).attr('name'), $(this).val());
+                            save(
+                                $(this).attr('name'),
+                                $(this).val(),
+                                function (result) {
+                                    if (result.status === 'success') {
+                                        $('#aam-404redirect-overwrite').show();
+                                    }
+                                }
+                            );
                         });
                     });
 
@@ -3521,6 +3546,10 @@
                             //save redirect type
                             save($(this).attr('name'), $(this).val());
                         });
+                    });
+
+                    $('#404redirect-reset').bind('click', function () {
+                        getAAM().reset('Main_404Redirect.reset', $(this));
                     });
                 }
             }
@@ -3547,7 +3576,7 @@
              * @returns {undefined}
              */
             function save(type, route, method, btn) {
-                var value = $(btn).hasClass('icon-check-empty') ? 1 : 0;
+                var value = $(btn).hasClass('icon-check-empty');
 
                 getAAM().queueRequest(function () {
                     //show indicator
@@ -3748,6 +3777,7 @@
                                 success: function (response) {
                                     if (response.status === 'success') {
                                         $('#uri-list').DataTable().ajax.reload();
+                                        $('#aam-uri-overwrite').show();
                                     } else {
                                         getAAM().notification(
                                             'danger', getAAM().__('Failed to save URI rule')
@@ -3872,6 +3902,15 @@
                                         }));
                                         break;
 
+                                    case 'no-edit':
+                                        $(container).append($('<i/>', {
+                                            'class': 'aam-row-action icon-pencil text-muted'
+                                        }).attr({
+                                            'data-toggle': "tooltip",
+                                            'title': getAAM().__('Inherited')
+                                        }));
+                                        break;
+
                                     case 'delete':
                                         $(container).append($('<i/>', {
                                             'class': 'aam-row-action icon-trash-empty text-danger'
@@ -3881,6 +3920,15 @@
                                         }).attr({
                                             'data-toggle': "tooltip",
                                             'title': getAAM().__('Delete Rule')
+                                        }));
+                                        break;
+
+                                    case 'no-delete':
+                                        $(container).append($('<i/>', {
+                                            'class': 'aam-row-action icon-trash-empty text-muted'
+                                        }).attr({
+                                            'data-toggle': "tooltip",
+                                            'title': getAAM().__('Inherited')
                                         }));
                                         break;
 
